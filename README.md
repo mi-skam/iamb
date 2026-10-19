@@ -32,6 +32,16 @@ _You may want to [see this page as it was when the latest version was published]
 You can find documentation for installing, configuring, and using iamb on its
 website, [iamb.chat].
 
+## Local input-history patch
+
+See [FORK.md](FORK.md) for release rebasing and local installation instructions.
+
+In a room's composer, Insert-mode Up recalls previous sent input, and Down
+moves forward through that history. Recall focuses the composer and leaves it
+in Insert mode. Normal-mode arrows still navigate messages. This replaces
+Insert-mode arrow navigation within multiline drafts; use Shift-Up and
+Shift-Down to move between draft lines while staying in Insert mode. History is kept per chat view for the current session.
+
 ## Configuration
 
 You can create a basic configuration in `$CONFIG_DIR/iamb/config.toml` that looks like:

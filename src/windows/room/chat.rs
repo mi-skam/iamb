@@ -587,6 +587,9 @@ impl ChatState {
                     msg.trim_end().to_string()
                 };
 
+                // Keep the original input (including slash commands and Markdown),
+                // but only add it to history after the send succeeds.
+                let sent_input = EditRope::from(msg.clone());
                 let mut msg = text_to_message(msg.into(), tunables.default_markup);
 
                 let mentions = if let MessageType::Text(content) = &msg.msgtype {
@@ -623,6 +626,8 @@ impl ChatState {
                                         return Err(UIError::Failure(msg.into()));
                                     }
 
+                                    self.sent.select(sent_input);
+                                    self.sent_scrollback = history::ScrollbackState::Pending;
                                     self.reset();
                                     return Ok(None);
                                 },
@@ -660,6 +665,8 @@ impl ChatState {
                 room.send_queue().send(msg.into()).await.map_err(IambError::from)?;
 
                 // Reset message bar state now that it's been sent.
+                self.sent.select(sent_input);
+                self.sent_scrollback = history::ScrollbackState::Pending;
                 self.reset();
             },
             SendAction::Upload(file, add_caption) => {
@@ -1069,6 +1076,12 @@ impl Promptable<ProgramContext, ProgramStore, IambInfo> for ChatState {
         ctx: &ProgramContext,
         store: &mut ProgramStore,
     ) -> EditResult<Vec<(ProgramAction, ProgramContext)>, IambInfo> {
+        // Input history belongs to the composer, including immediately after
+        // entering Insert mode from message history.
+        if matches!(act, PromptAction::Recall(..)) {
+            self.focus = RoomFocus::MessageBar;
+        }
+
         if let RoomFocus::Scrollback = self.focus {
             return self.scrollback.prompt(act, ctx, store);
         }

@@ -2,7 +2,7 @@
 //!
 //! The keybindings are set up here. We define some iamb-specific keybindings, but the default Vim
 //! keys come from [modalkit::env::vim::keybindings].
-use modalkit::actions::MacroAction;
+use modalkit::actions::{EditAction, MacroAction};
 use modalkit::env::CommonKeyClass;
 use modalkit::env::vim::VimMode;
 use modalkit::env::vim::keybindings::{InputStep, VimBindings};
@@ -11,6 +11,10 @@ use modalkit::keybindings::{EdgeEvent, EdgeRepeat, InputBindings};
 use crate::base::{Keybindings, MATRIX_ID_WORD};
 use crate::config::{Keys, SplitDirection};
 use crate::prelude::*;
+
+#[cfg(test)]
+#[path = "keybindings_history_tests.rs"]
+mod history_tests;
 
 pub type IambStep = InputStep<IambInfo>;
 
@@ -62,6 +66,29 @@ pub fn setup_keybindings() -> Keybindings {
     ]);
     ism.add_mapping(VimMode::Insert, &cwm, &newline);
     ism.add_mapping(VimMode::Insert, &shift_enter, &newline);
+
+    // Recall sent input without leaving Insert mode. Normal-mode arrows
+    // retain their usual message-selection behavior.
+    for (key, direction) in [("<Up>", MoveDir1D::Previous), ("<Down>", MoveDir1D::Next)] {
+        let key = key.parse::<TerminalKey>().unwrap();
+        let recall = IambStep::new().actions(vec![
+            PromptAction::Recall(RecallFilter::All, direction, Count::Exact(1)).into(),
+        ]);
+        ism.add_mapping(VimMode::Insert, &[once(&key)], &recall);
+    }
+
+    // Keep vertical draft editing available without recalling sent input.
+    for (key, direction) in [("<S-Up>", MoveDir1D::Previous), ("<S-Down>", MoveDir1D::Next)] {
+        let key = key.parse::<TerminalKey>().unwrap();
+        let motion = IambStep::new().actions(vec![
+            EditorAction::Edit(
+                EditAction::Motion.into(),
+                EditTarget::Motion(MoveType::Line(direction), Count::Exact(1)),
+            )
+            .into(),
+        ]);
+        ism.add_mapping(VimMode::Insert, &[once(&key)], &motion);
+    }
 
     ism
 }
